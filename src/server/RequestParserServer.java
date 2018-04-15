@@ -27,16 +27,16 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 	}
 
 	@Override
-	public String getResponseType(String response) {
+public String getResponseType(String response) {
 		
 		
 		try {
-			JSONObject json=(JSONObject)JSONValue.parse(Base64.decodeBase64(response).toString());
+			JSONObject json=(JSONObject)JSONValue.parse(new String(Base64.decodeBase64(response)));
 			if (Response(response) == this.responseOk) {
 				
 				if(json.containsKey("type") ) {
 					//return the token by decoding base64 string
-					return new String (json.get("type").toString());
+					return json.get("type").toString();
 				}
 				
 				return "-1";
@@ -58,7 +58,7 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 		// code
 		try {
 			//create a JSON object from the response parameter by decoding it and parsing
-			JSONObject json=(JSONObject)JSONValue.parse(Base64.decodeBase64(response).toString());
+			JSONObject json=(JSONObject)JSONValue.parse(new String(Base64.decodeBase64(response)));
 			
 			if (json.containsKey("header")) {
 				//extract the response code and return it
@@ -73,21 +73,7 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 
 	}
 
-	@Override
-	public String exchangeCypher(String encrypted,String pass) {
-		try {
-			AuthServer auth=new AuthServer();
-			String decrypt= auth.decrypt(pass, encrypted);
-			int authNext=Integer.parseInt(decrypt)+1;
-			return Base64.encodeBase64String(auth.encrypt(pass,String.valueOf(authNext)).getBytes());
-		} catch (Exception e) {
-			// TODO: handle exception
-			System.out.println("Error in server auth reply...\n");
-			return "-1";
-		}
-		
-	
-	}
+
 
 	
 		@Override
@@ -95,63 +81,35 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 		return null;
 	}
 
-	@Override
-	public String AuthChallangeToken() throws ResponseException {
-		SecureRandom secure=new SecureRandom();
-		try {
-				
-				AuthServer auth=new AuthServer();
-				String ecrypt= auth.encrypt(pass,Integer.toString(secure.nextInt(1000000)));
-				int authInt=Integer.parseInt(ecrypt)+1;
-				return String.valueOf(auth.encrypt(pass,String.valueOf(authInt)));
-			} catch (Exception e) {
-				// TODO: handle exception
-				
-				return "-1";
-			}
-		
-	}
+	
+
 
 	@Override
 	public String getauthChallangeReply(String response) throws Exception {
-		try {
+		//try {
 			//create a json object from the response parameter
-			JSONObject json=(JSONObject)JSONValue.parse(Base64.decodeBase64(response).toString());
+			JSONObject json=(JSONObject)JSONValue.parse(new String(Base64.decodeBase64(response)));
 			if (Response(response) == this.responseOk) {
 				//check if there is token field in the json and it is a base64 encoded one
-				if(json.containsKey("authRepToken") &  Base64.isBase64(json.get("authToken").toString())) {
+				if(json.containsKey("authRepToken") &  Base64.isBase64(json.get("authRepToken").toString())) {
 					//return the token by decoding base64 string
-					return new String (Base64.decodeBase64(json.get("authRepToken").toString()));
+					return (json.get("authRepToken").toString());
 				}
 				
 				//if no tokens found throw a custom exception
 				throw new  ResponseException("No Auth Tokens Found");
 			}
+			return "-1";
 			
-			
-		} catch (Exception e) {
-			throw new  ResponseException("Error Parsing Response");
-		}
+		//} catch (Exception e) {
+		//	throw new  ResponseException("Error Parsing Response");
+		//}
 		//if error occur parsing throw an exception
-		throw new  ResponseException("Error Parsing Response");
+		//throw new  ResponseException("Error Parsing Response");
 	}
 
-	@Override
-	public String SessionToken(String token) {
-		SecureRandom secure=new SecureRandom();
-		try {
-				
-				AuthServer auth=new AuthServer();
-				String ecrypt= auth.encrypt(pass,token);
-				int authInt=Integer.parseInt(ecrypt)+1;
-				return String.valueOf(auth.encrypt(pass,String.valueOf(authInt)));
-			} catch (Exception e) {
-				// TODO: handle exception
-				
-				return "-1";
-			}
-		
-	}
+
+	
 
 	
 
@@ -192,6 +150,35 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 	 */
 	public int InvalidResponse() {
 		return invalidResponse;
+	}
+
+	@Override
+	public String authChallage(String token) throws ResponseException {
+		AuthServer auth =new AuthServer();
+		JSONObject json=new JSONObject();
+		json.put("header", responseOk);
+		json.put("type", "authToken");
+		json.put("authToken",token);
+		return Base64.encodeBase64String(json.toJSONString().getBytes());
+	}
+
+	@Override
+	public String authSuccess(String sessionToken) {
+		JSONObject json=new JSONObject();
+		json.put("header", responseOk);
+		json.put("type", "authOk");
+		json.put("token", sessionToken);
+		System.out.println(json.toJSONString());
+		return Base64.encodeBase64String((json.toJSONString().getBytes()));
+	}
+
+	@Override
+	public String authFail() {
+		JSONObject json=new JSONObject();
+		json.put("header", responseOk);
+		json.put("type", "authFail");
+		System.out.println(json.toJSONString());
+		return Base64.encodeBase64String((json.toJSONString().getBytes()));
 	}
 
 

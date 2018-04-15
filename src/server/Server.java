@@ -31,9 +31,14 @@ public class Server {
 
     private static class Handler extends Thread {
     	//Variables
+    	private AuthServer auth=new AuthServer();
     	private Socket socket;
     	private String response="";
     	private RequestParserServer parser =new RequestParserServer();
+    	private String key="IT16107274";
+    	private String authString;
+    	private String SessionToken;
+    	private String id;
     	//End Variables
     	
     	
@@ -63,21 +68,67 @@ public class Server {
                    
                     if (!(response==null)) {
                     synchronized (alarmList) {
-                    	JSONObject json=(JSONObject)JSONValue.parse(Base64.decodeBase64(response).toString());
+                    	JSONObject json=(JSONObject)JSONValue.parse(new String(Base64.decodeBase64(response)));
                     	System.out.println(json.toJSONString());
                         if (!alarmList.containsKey(json.get("id").toString())) {
-                            alarmList.put(json.get("id").toString(),out);
+                        	id=json.get("id").toString();
+                            alarmList.put(id,out);
                             System.out.println("alarm id added "+json.get("id").toString());
+                            try {
+                            	authString=auth.AuthChallangeToken();
+								 out.println(parser.authChallage(authString));
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+                           
                             break;
                         }else {
                         	JSONObject request=new JSONObject();
-                    		json.put("header",parser.AlarmExists());
+                        	request.put("header",parser.AlarmExists());
                     		
-                        	out.print(request.toJSONString());
+                        	out.println(Base64.encodeBase64String(request.toJSONString().getBytes()));
                         	 System.out.println(request.toJSONString());
                         }
                     }
                     }
+                }
+                
+                while(true) {
+                	 response = in.readLine();
+                     
+                     if (!(response==null)) {
+                     
+                     	JSONObject json=(JSONObject)JSONValue.parse(new String(Base64.decodeBase64(response)));
+                     	System.out.println(json.toJSONString());
+                     	System.out.println(parser.getResponseType(response));
+                        if (parser.getResponseType(response).equals("authReply")) {
+                        	try {
+								
+								if (Integer.parseInt(auth.decrypt(key, parser.getauthChallangeReply(response)))-1==Integer.parseInt(auth.decrypt(key, authString))) {
+									System.out.println("auth suceswful");
+									SessionToken=auth.SessionToken();
+									out.println(parser.authSuccess(SessionToken));
+									synchronized (tokenList) {
+										tokenList.put(id, SessionToken);
+									}
+								}else {
+									System.out.println("auth failed");
+									synchronized (alarmList) {
+										alarmList.remove(id);
+									}
+									out.println(parser.authFail());
+									socket.close();
+									return;
+									
+								}
+							} catch (Exception e) {
+								System.out.println(e);
+							}
+                        	
+                        }
+                     
+                     }
+                	
                 }
                 
                 
