@@ -10,6 +10,7 @@ public interface ClientInterface extends Remote {
 	
 	 public void clientCount(int count) throws RemoteException;
 	 public void sensorList(ArrayList<String> sensors ) throws RemoteException;
-	 public void sensorReadings(HashMap<String,JSONArray> readings) throws RemoteException;
+	 public  void sensorReadings(HashMap<String,JSONArray> readings) throws RemoteException;
+	public void sensorDisconnected(String alarmId)throws RemoteException;
 	
 }

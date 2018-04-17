@@ -13,6 +13,7 @@ import java.rmi.RMISecurityManager;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -26,7 +27,7 @@ import client.ClientInterface;
 public class Server extends UnicastRemoteObject implements SensorService {
 
 	private static final long serialVersionUID = 1L;
-	private static ArrayList< ClientInterface> monitorClients = new ArrayList< ClientInterface>();
+	private static HashMap< Integer,ClientInterface> monitorClients = new HashMap< Integer,ClientInterface>();
 	private String password="admin";
 	public Server() throws RemoteException {
 		super();
@@ -99,7 +100,7 @@ public class Server extends UnicastRemoteObject implements SensorService {
 		private String key = "IT16107274";
 		private String authString;
 		private String SessionToken;
-		private String id;
+		private String alarmId;
 		// End Variables
 
 		public Handler(Socket socket) {
@@ -123,8 +124,8 @@ public class Server extends UnicastRemoteObject implements SensorService {
 							JSONObject json = (JSONObject) JSONValue.parse(new String(Base64.decodeBase64(response)));
 							System.out.println(json.toJSONString());
 							if (!alarmList.containsKey(json.get("id").toString())) {
-								id = json.get("id").toString();
-								alarmList.put(id, new Object[] { out, in });
+								alarmId = json.get("id").toString();
+								alarmList.put(alarmId, new Object[] { out, in });
 								System.out.println("alarm id added " + json.get("id").toString());
 								try {
 									authString = auth.AuthChallangeToken();
@@ -162,13 +163,23 @@ public class Server extends UnicastRemoteObject implements SensorService {
 									SessionToken = auth.SessionToken();
 									out.println(parser.authSuccess(SessionToken));
 									synchronized (tokenList) {
-										tokenList.put(id, SessionToken);
+										tokenList.put(alarmId, SessionToken);
 									}
+									
+									HashMap<String, JSONArray> readings = new HashMap<String, JSONArray>();
+
+									readings.put(parser.getJSON(response).get("id").toString(),
+											new JSONArray());
+									for (ClientInterface client : monitorClients.values()) {
+										client.sensorReadings(readings);
+									}
+									
 									break;
+									
 								} else {
 									System.out.println("auth failed");
 									synchronized (alarmList) {
-										alarmList.remove(id);
+										alarmList.remove(alarmId);
 									}
 									out.println(parser.authFail());
 									socket.close();
@@ -191,7 +202,7 @@ public class Server extends UnicastRemoteObject implements SensorService {
 					if (!(response == null)) {
 						System.out.println(parser.getResponseType(response).toString().equals("sensorReading[]") );
 						if (parser.getResponseType(response).toString().equals("sensorReading[]")) {
-							
+						
 							try {
 								String senderToken = parser.getJSON(response).get("token").toString();
 								String senderId = parser.getJSON(response).get("id").toString();
@@ -202,13 +213,13 @@ public class Server extends UnicastRemoteObject implements SensorService {
 
 									readings.put(parser.getJSON(response).get("id").toString(),
 											(JSONArray) (parser.getJSON(response).get("readings")));
-									for (ClientInterface client : monitorClients) {
+									for (ClientInterface client : monitorClients.values()) {
 										client.sensorReadings(readings);
 									}
 								}
 								
 							} catch (Exception e) {
-								System.out.println(e.toString());
+								System.out.println(e.toString()+ " server x1");
 							}
 
 						}
@@ -225,6 +236,11 @@ public class Server extends UnicastRemoteObject implements SensorService {
 
 				try {
 					socket.close();
+					alarmList.remove(alarmId);
+					tokenList.remove(alarmId);
+					for (ClientInterface client : monitorClients.values()) {
+						client.sensorDisconnected(alarmId);;
+					}
 				} catch (IOException e) {
 				}
 			}
@@ -232,17 +248,18 @@ public class Server extends UnicastRemoteObject implements SensorService {
 	}
 
 	@Override
-	public boolean authenticate(ClientInterface service, String password) throws RemoteException {
+	public int authenticate(ClientInterface service, String password) throws RemoteException {
 		
 		if(this.password.equals(password)) {
 			synchronized (monitorClients) {
-				monitorClients.add(service);
-				System.out.println("Monitoring client connected");
-				return true;
+				int id=new SecureRandom().nextInt(100000);
+				monitorClients.put(id,service);
+				System.out.println("Monitoring client connected " +id);
+				return id;
 			}
 			
 		}
-		return false;
+		return -1;
 		
 	}
 
@@ -268,6 +285,31 @@ public class Server extends UnicastRemoteObject implements SensorService {
 	public void sensorReadings(HashMap<String, JSONObject> readings) throws RemoteException {
 		// TODO Auto-generated method stub
 
+	}
+
+	@Override
+	public boolean disconnectFromServer(int monitorId) throws RemoteException {
+		try {
+			System.out.println("Monitoring client disconnet here " +monitorId);
+			//synchronized (monitorClients) {
+			
+			if(monitorClients.containsKey(monitorId)) {
+				System.out.println("Monitoring client disconnet " +monitorId);
+				monitorClients.remove(monitorId);
+				return true;
+			}else {
+				System.out.println("Monitoring client not found " +monitorId+" "+monitorClients.size());
+				return false;
+			}
+			
+		//}
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			return false;
+		}
+		
+		
+		
 	}
 
 }
