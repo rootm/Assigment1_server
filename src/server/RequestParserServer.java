@@ -32,16 +32,16 @@ public String getResponseType(String response) {
 		
 		try {
 			JSONObject json=(JSONObject)JSONValue.parse(new String(Base64.decodeBase64(response)));
-			if (Response(response) == this.responseOk) {
+			//if (Response(response) == this.responseOk) {
 				
 				if(json.containsKey("type") ) {
 					//return the token by decoding base64 string
-					return json.get("type").toString();
+					return String.valueOf(json.get("type").toString());
 				}
 				
 				return "-1";
 				
-			}
+			//}
 			
 		} catch (Exception e) {
 			
@@ -179,6 +179,18 @@ public String getResponseType(String response) {
 		json.put("type", "authFail");
 		System.out.println(json.toJSONString());
 		return Base64.encodeBase64String((json.toJSONString().getBytes()));
+	}
+
+	@Override
+	public JSONObject getJSON(String response) {
+		
+		try {
+			JSONObject json=(JSONObject)JSONValue.parse(new String(Base64.decodeBase64(response)));
+			return json;
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+		return null;
 	}
 
 

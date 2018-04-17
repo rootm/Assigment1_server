@@ -4,18 +4,38 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.AlreadyBoundException;
+import java.rmi.Naming;
+import java.rmi.RMISecurityManager;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.apache.commons.codec.binary.Base64;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-public class Server {
+import client.ClientInterface;
 
-	private static HashMap<String, PrintWriter> alarmList = new HashMap<String, PrintWriter>();
+public class Server extends UnicastRemoteObject implements SensorService {
+
+	private static final long serialVersionUID = 1L;
+	private static ArrayList< ClientInterface> monitorClients = new ArrayList< ClientInterface>();
+	private String password="admin";
+	public Server() throws RemoteException {
+		super();
+	}
+
+	private static HashMap<String, Object[]> alarmList = new HashMap<String, Object[]>();
 	private static HashMap<String, String> tokenList = new HashMap<String, String>();
+
+	static ServerSocket Alarmlistener;
 
 	public static void main(String[] args) throws Exception {
 		System.out.println("The Fire Alarm Monitor server is running.");
@@ -24,7 +44,7 @@ public class Server {
 		Runnable runnable = new Runnable() {
 			@Override
 			public void run() {
-				ServerSocket Alarmlistener;
+
 				try {
 					Alarmlistener = new ServerSocket(3001);
 					try {
@@ -49,6 +69,24 @@ public class Server {
 		System.out.println("Starting Thread...");
 		thread.start();
 		System.out.println("Socket connetions running seperatley...");
+
+		if (System.getSecurityManager() == null)
+			System.setSecurityManager(new SecurityManager());
+		try {
+			LocateRegistry.createRegistry(2099);
+			Server server = new Server();
+			Naming.rebind("SensorService", server);
+			System.out.println("RMI Service started....");
+		} catch (RemoteException re) {
+			System.err.println(re.getMessage());
+
+		} catch (AlreadyBoundException abe) {
+
+			System.err.println(abe.getMessage());
+			Naming.unbind("SensorService");
+		} catch (MalformedURLException mue) {
+			System.err.println(mue.getMessage());
+		}
 
 	}
 
@@ -86,7 +124,7 @@ public class Server {
 							System.out.println(json.toJSONString());
 							if (!alarmList.containsKey(json.get("id").toString())) {
 								id = json.get("id").toString();
-								alarmList.put(id, out);
+								alarmList.put(id, new Object[] { out, in });
 								System.out.println("alarm id added " + json.get("id").toString());
 								try {
 									authString = auth.AuthChallangeToken();
@@ -126,6 +164,7 @@ public class Server {
 									synchronized (tokenList) {
 										tokenList.put(id, SessionToken);
 									}
+									break;
 								} else {
 									System.out.println("auth failed");
 									synchronized (alarmList) {
@@ -133,7 +172,7 @@ public class Server {
 									}
 									out.println(parser.authFail());
 									socket.close();
-									return;
+									break;
 
 								}
 							} catch (Exception e) {
@@ -143,6 +182,40 @@ public class Server {
 						}
 
 					}
+
+				}
+				System.out.println("\n listning to messages\n");
+				while (true) {
+					response = in.readLine();
+
+					if (!(response == null)) {
+						System.out.println(parser.getResponseType(response).toString().equals("sensorReading[]") );
+						if (parser.getResponseType(response).toString().equals("sensorReading[]")) {
+							
+							try {
+								String senderToken = parser.getJSON(response).get("token").toString();
+								String senderId = parser.getJSON(response).get("id").toString();
+								System.out.println(senderToken+" "+senderId );
+								if (tokenList.get(senderId).toString().equals(senderToken)) {
+
+									HashMap<String, JSONArray> readings = new HashMap<String, JSONArray>();
+
+									readings.put(parser.getJSON(response).get("id").toString(),
+											(JSONArray) (parser.getJSON(response).get("readings")));
+									for (ClientInterface client : monitorClients) {
+										client.sensorReadings(readings);
+									}
+								}
+								
+							} catch (Exception e) {
+								System.out.println(e.toString());
+							}
+
+						}
+
+					}
+					JSONObject json = (JSONObject) JSONValue.parse(new String(Base64.decodeBase64(response)));
+					System.out.println(json.toJSONString());
 
 				}
 
@@ -156,6 +229,45 @@ public class Server {
 				}
 			}
 		}
+	}
+
+	@Override
+	public boolean authenticate(ClientInterface service, String password) throws RemoteException {
+		
+		if(this.password.equals(password)) {
+			synchronized (monitorClients) {
+				monitorClients.add(service);
+				System.out.println("Monitoring client connected");
+				return true;
+			}
+			
+		}
+		return false;
+		
+	}
+
+	@Override
+	public String getSensor(String alarmId) throws RemoteException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void clientCount(int count) throws RemoteException {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void sensorList(ArrayList<String> sensors) throws RemoteException {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void sensorReadings(HashMap<String, JSONObject> readings) throws RemoteException {
+		// TODO Auto-generated method stub
+
 	}
 
 }

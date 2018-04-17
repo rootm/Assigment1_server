@@ -1,0 +1,2 @@
+java -Djava.security.policy=C:\Users\Muvindu\Documents\eclipse\FireAlarmsServer\src\server\allowall.policy server.Server
+java -Djava.security.policy=C:\Users\Muvindu\Documents\eclipse\FireAlarmsServer\src\server\allowall.policy client.MonitorClient
