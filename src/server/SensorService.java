@@ -11,9 +11,6 @@ import client.ClientInterface;;
 
 public interface SensorService extends Remote {
 	public int authenticate(ClientInterface service,String password) throws RemoteException;
-	
-	
 	public void getSensorReading(String id,String clientId) throws RemoteException;
-
 	public boolean disconnectFromServer(int monitorId)throws RemoteException;
 }

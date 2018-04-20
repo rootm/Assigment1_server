@@ -72,6 +72,9 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 		}
 
 	}
+	
+	//method used generate the message to send to the fire alarm
+	//when a monitor station request a reading
 
 	@Override
 	public String sensorReadingsRequest(String alarmId,String clientId) {
@@ -85,7 +88,7 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 
 	@Override
 	public String getauthChallangeReply(String response) throws Exception {
-		// try {
+		 try {
 		// create a json object from the response parameter
 		JSONObject json = (JSONObject) JSONValue.parse(new String(Base64.decodeBase64(response)));
 		if (Response(response) == this.responseOk) {
@@ -100,11 +103,11 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 		}
 		return "-1";
 
-		// } catch (Exception e) {
-		// throw new ResponseException("Error Parsing Response");
-		// }
-		// if error occur parsing throw an exception
-		// throw new ResponseException("Error Parsing Response");
+		 } catch (Exception e) {
+		 throw new ResponseException("Error Parsing Response");
+		 }
+		
+		
 	}
 
 	/*
@@ -162,7 +165,7 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 		json.put("header", responseOk);
 		json.put("type", "authOk");
 		json.put("token", sessionToken);
-		System.out.println(json.toJSONString());
+		
 		return Base64.encodeBase64String((json.toJSONString().getBytes()));
 	}
 
@@ -171,7 +174,7 @@ public class RequestParserServer implements RequestParserInterfaceServer {
 		JSONObject json = new JSONObject();
 		json.put("header", responseOk);
 		json.put("type", "authFail");
-		System.out.println(json.toJSONString());
+		
 		return Base64.encodeBase64String((json.toJSONString().getBytes()));
 	}
 

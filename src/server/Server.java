@@ -95,7 +95,7 @@ public class Server extends UnicastRemoteObject implements SensorService {
 
 		} catch (AlreadyBoundException abe) {
 
-			System.err.println(abe.getMessage());
+			
 			Naming.unbind("SensorService");
 		} catch (MalformedURLException mue) {
 			System.err.println(mue.getMessage());
@@ -135,9 +135,8 @@ public class Server extends UnicastRemoteObject implements SensorService {
 		ScheduledExecutorService readerService = Executors.newSingleThreadScheduledExecutor();
 		
 		Calendar rightNow = Calendar.getInstance();
-		///System.out.println(65-rightNow.get(Calendar.MINUTE));
-		//System.out.println(date.getTime());
-		readerService.scheduleWithFixedDelay(reportsRunnable, 7-(rightNow.get(Calendar.MINUTE)%10), 7, TimeUnit.MINUTES);
+		//run the reportsRunnable every 65 minutes
+		readerService.scheduleWithFixedDelay(reportsRunnable, 65-rightNow.get(Calendar.MINUTE), 65, TimeUnit.MINUTES);
 
 	}
 
@@ -162,24 +161,28 @@ public class Server extends UnicastRemoteObject implements SensorService {
 		public void run() {
 			try {
 
+				//get printWriter and a buffered reader to output and read incoming messages
 				PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 				BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
 				System.out.println("client Connecting");
-
+				
+				//loop responsible for reading auth initialize message
 				while (true) {
 
 					response = in.readLine();
 
 					if (!(response == null)) {
 						synchronized (alarmList) {
+							//decode the message from base64 to a JSON object
 							JSONObject json = (JSONObject) JSONValue.parse(new String(Base64.decodeBase64(response)));
-							System.out.println(json.toJSONString());
+							//check if the alarm id already exists
 							if (!alarmList.containsKey(json.get("id").toString())) {
 								alarmId = json.get("id").toString();
 								alarmList.put(alarmId, new Object[] { out, in });
 								System.out.println("alarm id added " + json.get("id").toString());
 								try {
+									//send the message with cipher challenge token
 									authString = auth.AuthChallangeToken();
 									out.println(parser.authChallage(authString));
 								} catch (Exception e) {
@@ -188,36 +191,40 @@ public class Server extends UnicastRemoteObject implements SensorService {
 
 								break;
 							} else {
+								//if alarm already registered send a error response
 								JSONObject request = new JSONObject();
 								request.put("header", parser.AlarmExists());
 
 								out.println(Base64.encodeBase64String(request.toJSONString().getBytes()));
-								System.out.println(request.toJSONString());
+								
 							}
 						}
 					}
 				}
 
+				//loop listening to cipher challenge messages and send responses accordingly
 				while (true) {
 					response = in.readLine();
 
 					if (!(response == null)) {
 
 						JSONObject json = (JSONObject) JSONValue.parse(new String(Base64.decodeBase64(response)));
-						System.out.println(json.toJSONString());
-						System.out.println(parser.getResponseType(response));
+						//check the auth reply message for cipher challenge answer from the fire alarm
 						if (parser.getResponseType(response).equals("authReply")) {
 							try {
-
+								//check if the fire alarm send the correct answer
 								if (Integer.parseInt(auth.decrypt(key, parser.getauthChallangeReply(response)))
 										- 1 == Integer.parseInt(auth.decrypt(key, authString))) {
-									System.out.println("auth suceswful");
+									System.out.println("auth sucessful");
+									//set the session token for this alarm
 									SessionToken = auth.SessionToken();
+									//send the session token to the fire alarm
 									out.println(parser.authSuccess(SessionToken));
 									synchronized (tokenList) {
+										//register generated session token
 										tokenList.put(alarmId, SessionToken);
 									}
-
+									//register alarm for checking hourly report
 									synchronized (reportStatus) {
 										reportStatus.put(alarmId, pending);
 									}
@@ -226,6 +233,7 @@ public class Server extends UnicastRemoteObject implements SensorService {
 
 									readings.put(parser.getJSON(response).get("id").toString(), new JSONArray());
 									synchronized (monitorClients) {
+										//send the registered fire alarm to every connected client
 										for (ClientInterface client : monitorClients.values()) {
 											client.sensorReadings(readings);
 										}
@@ -234,17 +242,20 @@ public class Server extends UnicastRemoteObject implements SensorService {
 									break;
 
 								} else {
+									//authentication failed
 									System.out.println("auth failed");
 									synchronized (alarmList) {
+										//remove it from the list if authentication failed
 										alarmList.remove(alarmId);
 									}
 									out.println(parser.authFail());
+									//close the socket
 									socket.close();
 									break;
 
 								}
 							} catch (Exception e) {
-								System.out.println(e);
+								//System.out.println(e);
 							}
 
 						}
@@ -253,29 +264,30 @@ public class Server extends UnicastRemoteObject implements SensorService {
 
 				}
 				System.out.println("\n listning to messages\n");
+				//loop listening to messages after authentication
 				while (true) {
 					response = in.readLine();
 
 					if (!(response == null)) {
-						// System.out.println(parser.getResponseType(response).toString().equals("sensorReading[]")
-						// );
+						//get the hourly alarm messages
 						if (parser.getResponseType(response).toString().equals("sensorReading[]")) {
-
+							
 							try {
 								String senderToken = parser.getJSON(response).get("token").toString();
 								String senderId = parser.getJSON(response).get("id").toString();
-								// System.out.println(senderToken+" "+senderId );
+								//verify the token with the registered token
 								if (tokenList.get(senderId).toString().equals(senderToken)) {
 
 									HashMap<String, JSONArray> readings = new HashMap<String, JSONArray>();
-
+									
 									readings.put(parser.getJSON(response).get("id").toString(),
 											(JSONArray) (parser.getJSON(response).get("readings")));
 									synchronized (monitorClients) {
+										//Send the readings to every registered client stations
 										for (ClientInterface client : monitorClients.values()) {
 											client.sensorReadings(readings);
 										}
-
+										//mark as report arrived for the alarm
 										synchronized (readings) {
 											reportStatus.replace(alarmId, recieved);
 										}
@@ -285,18 +297,18 @@ public class Server extends UnicastRemoteObject implements SensorService {
 								}
 
 							} catch (Exception e) {
-								System.out.println(e.toString() + " server x1");
+								
 							}
-
+							//get the monitor station requestered message from alarm
 						}else if (parser.getResponseType(response).toString().equals("sensorReading")) {
 							try {
 								String senderToken = parser.getJSON(response).get("token").toString();
 								String senderId = parser.getJSON(response).get("id").toString();
-								System.out.println("sensor msg xx"+" "+senderId );
+								
 								if (tokenList.get(senderId).toString().equals(senderToken)) {
 
 										synchronized (monitorClients) {
-										
+											//get the client interface to send and send it to the client that client only
 											int clientId=Integer.parseInt(parser.getClientId(response));
 											if(clientId!=-1) {
 											ClientInterface client=monitorClients.get(clientId);
@@ -310,15 +322,16 @@ public class Server extends UnicastRemoteObject implements SensorService {
 								}
 
 							} catch (Exception e) {
-								System.out.println(e.toString() + " server x2");
+								
 							}
+							//get alert messages send from fire alarms
 						}else if (parser.getResponseType(response).toString().equals("alert")) {
 							try {
 								String senderToken = parser.getJSON(response).get("token").toString();
 								String senderId = parser.getJSON(response).get("id").toString();
-								System.out.println("alert msg xx"+" "+senderId );
+								//verify the token of the message
 								if (tokenList.get(senderId).toString().equals(senderToken)) {
-
+									//send the alert to every monitor stations
 									synchronized (monitorClients) {
 										for (ClientInterface client : monitorClients.values()) {
 											client.alerts(parser.getJSON(response).get("message").toString());
@@ -331,14 +344,12 @@ public class Server extends UnicastRemoteObject implements SensorService {
 								}
 
 							} catch (Exception e) {
-								System.out.println(e.toString() + " server x2");
+								
 							}
 						}
 
 					}
-					// JSONObject json = (JSONObject) JSONValue.parse(new
-					// String(Base64.decodeBase64(response)));
-					// System.out.println(json.toJSONString());
+					
 
 				}
 
@@ -378,7 +389,7 @@ public class Server extends UnicastRemoteObject implements SensorService {
 
 			}
 		} catch (Exception e) {
-			System.out.println(e.getMessage() + " sever error xx1");
+			
 		}
 
 	}
@@ -408,8 +419,7 @@ public class Server extends UnicastRemoteObject implements SensorService {
 	@Override
 	public boolean disconnectFromServer(int monitorId) throws RemoteException {
 		try {
-			System.out.println("Monitoring client disconnet here " + monitorId);
-			// synchronized (monitorClients) {
+			
 
 			if (monitorClients.containsKey(monitorId)) {
 				System.out.println("Monitoring client disconnet " + monitorId);
@@ -419,11 +429,11 @@ public class Server extends UnicastRemoteObject implements SensorService {
 				clientCountUpdate();
 				return true;
 			} else {
-				System.out.println("Monitoring client not found " + monitorId + " " + monitorClients.size());
+				
 				return false;
 			}
 
-			// }
+			
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
 			return false;
@@ -437,10 +447,11 @@ public class Server extends UnicastRemoteObject implements SensorService {
 			RequestParserServer parser=new RequestParserServer();
 			Object[] array=	alarmList.get(id);
 			PrintWriter writer=(PrintWriter) array[0];
-			System.out.println("Sensor request send for sensor id "+id);
+			System.out.println(new String(Base64.decodeBase64(parser.sensorReadingsRequest(id,clientId).getBytes())));
+			
 			writer.println(parser.sensorReadingsRequest(id,clientId));
 		} catch (Exception e) {
-			System.out.println(e.getMessage()+" get sensor reading");
+			
 		}
 		
 	}

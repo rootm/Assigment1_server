@@ -39,14 +39,8 @@ import server.SensorService;
 public class MonitorClient extends javax.swing.JFrame {
 
 	private static final long serialVersionUID = 1L;
-	// JFrame frame = new JFrame("Monitor");
-	// JLabel numSensors = new JLabel();
-	// JLabel numClients = new JLabel();
-	// JTextArea alertsData = new JTextArea(10, 60);
-	// JTextArea sensorData = new JTextArea(10, 60);
 	static DefaultListModel<String> listModel = new DefaultListModel<>();
-	// JList<String> sensorList = new JList<>(listModel);
-	// JButton request = new JButton("Request Sensor Data");
+
 
 	private static int monitorId;
 
@@ -170,40 +164,6 @@ public class MonitorClient extends javax.swing.JFrame {
 
 	public MonitorClient() {
 		// Layout GUI
-
-		/*
-		 * GridBagConstraints gbc = new GridBagConstraints(); GridBagLayout layout = new
-		 * GridBagLayout(); frame.setLayout(layout); gbc.fill =
-		 * GridBagConstraints.HORIZONTAL; numSensors.setText("Sensor Count: ");
-		 * numClients.setText("Client Count: "); gbc.gridwidth = 1; gbc.gridx = 0;
-		 * gbc.gridy = 0; frame.add(numSensors, gbc); gbc.fill =
-		 * GridBagConstraints.HORIZONTAL; gbc.gridwidth = 1; gbc.gridx = 1; gbc.gridy =
-		 * 0; frame.add(numClients, gbc);
-		 * 
-		 * gbc.gridwidth = 1; gbc.gridx = 0; gbc.gridy = 1;
-		 * sensorList.setFixedCellWidth(100); JScrollPane paneA = new
-		 * JScrollPane(sensorList);
-		 * 
-		 * paneA.setPreferredSize(new Dimension(paneA.getPreferredSize().height, 163));
-		 * 
-		 * 
-		 * frame.getContentPane().add(paneA, gbc); gbc.fill =
-		 * GridBagConstraints.HORIZONTAL; gbc.gridwidth = 1; gbc.gridx = 1; gbc.gridy =
-		 * 1; frame.getContentPane().add(new JScrollPane(sensorData), gbc); gbc.fill =
-		 * GridBagConstraints.HORIZONTAL;
-		 * 
-		 * gbc.gridx = 1; gbc.gridy = 2; frame.add(request, gbc); // gbc.fill =
-		 * GridBagConstraints.HORIZONTAL; gbc.gridwidth = 2; gbc.gridx = 0; gbc.gridy =
-		 * 3; frame.getContentPane().add(new JScrollPane(alertsData), gbc);
-		 * 
-		 * 
-		 * 
-		 * frame.pack(); frame.setResizable(false);
-		 * frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		 * 
-		 * frame.setVisible(true); frame.setResizable(false);
-		 */
-
 		initComponents();
 
 	}
@@ -212,6 +172,7 @@ public class MonitorClient extends javax.swing.JFrame {
 		return JOptionPane.showInputDialog(this, "Enter Password", JOptionPane.PLAIN_MESSAGE);
 	}
 
+	//display the selected sensors current reading send by the server
 	void sensorListValueChanged(javax.swing.event.ListSelectionEvent evt) {
 		try {
 			if (!evt.getValueIsAdjusting()) {
@@ -237,8 +198,7 @@ public class MonitorClient extends javax.swing.JFrame {
 								
 							}
 sensorData.setCaretPosition(0);
-							// for(JSONObject jarray:data.)) {}
-							// sensorData.setText(data.to);
+							
 
 						} else {
 
@@ -248,9 +208,9 @@ sensorData.setCaretPosition(0);
 			}
 		} catch (RemoteException e1) {
 			// TODO Auto-generated catch block
-			System.out.println(e1.getMessage() + " monitor x1");
+			
 		} catch (Exception ex) {
-			System.out.println(ex.getMessage() + " monitor x2 null");
+			
 		}
 
 	}
@@ -259,9 +219,9 @@ sensorData.setCaretPosition(0);
 		try {
 			messenger msg=new messenger();
 			msg.getServer().getSensorReading(id,String.valueOf(monitorId));
-			System.out.println("sensor request "+id);
+			
 		} catch (Exception e) {
-			System.out.println("sensor request "+e.getMessage());
+			
 		}
 		
 		
@@ -289,92 +249,7 @@ sensorData.setCaretPosition(0);
 				}
 			}
 
-			// service.authenticate(client, "pass");
-
-			/*
-			 * client.sensorList.addListSelectionListener(new ListSelectionListener() {
-			 * 
-			 * @Override public void valueChanged(ListSelectionEvent e) {
-			 * 
-			 * try { messenger msg=new messenger(); JSONArray data=new JSONArray(); String
-			 * selected=String.valueOf(client.sensorList.getSelectedValue());
-			 * if(selected!=null) { if(msg.contains(selected)) {
-			 * 
-			 * data=msg.getSensorData(selected);
-			 * 
-			 * if (data!=null) { Iterator i = data.iterator(); while(i.hasNext()) {
-			 * JSONObject js=(JSONObject)i.next();
-			 * client.sensorData.setText(sensorData.getText()+
-			 * "Time: "+js.get("time")+"\n\tTemperature: "+js.get("temp")
-			 * +"\n\tBattery Level: "+js.get("battery")+"\n\tSmoke Level: "+js.get("smoke")
-			 * +"\n\tCo2 Level: "+js.get("co2")+"\n\n");
-			 * 
-			 * }
-			 * 
-			 * //for(JSONObject jarray:data.)) {} // sensorData.setText(data.to);
-			 * 
-			 * 
-			 * }else {
-			 * 
-			 * } } } } catch (RemoteException e1) { // TODO Auto-generated catch block
-			 * System.out.println(e1.getMessage()+" monitor x1" ); }catch(Exception ex) {
-			 * System.out.println(ex.getMessage()+" monitor x2 null" ); }
-			 * 
-			 * } });
-			 */
-
-			/*client.addWindowListener(new WindowListener() {
-
-				@Override
-				public void windowClosing(WindowEvent e) {
-					try {
-						System.out.println("closing");
-						messenger msg = new messenger();
-						msg.disconnect(monitorId);
-
-					} catch (Exception e2) {
-						System.out.println(e2.getMessage());
-					}
-
-				}
-
-				@Override
-				public void windowActivated(WindowEvent e) {
-					// TODO Auto-generated method stub
-
-				}
-
-				@Override
-				public void windowClosed(WindowEvent e) {
-					// TODO Auto-generated method stub
-
-				}
-
-				@Override
-				public void windowDeactivated(WindowEvent e) {
-					// TODO Auto-generated method stub
-
-				}
-
-				@Override
-				public void windowDeiconified(WindowEvent e) {
-					// TODO Auto-generated method stub
-
-				}
-
-				@Override
-				public void windowIconified(WindowEvent e) {
-					// TODO Auto-generated method stub
-
-				}
-
-				@Override
-				public void windowOpened(WindowEvent e) {
-					// TODO Auto-generated method stub
-
-				}
-
-			});*/
+			
 			
 
 			client.setVisible(true);

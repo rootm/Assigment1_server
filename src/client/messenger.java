@@ -14,7 +14,7 @@ import org.json.simple.parser.JSONParser;
 import server.SensorService;
 
 public class messenger extends UnicastRemoteObject implements ClientInterface {
-
+	private static final long serialVersionUID = 1L;
 	private static SensorService server;
 	private MonitorClient monitor;
 	JSONObject json = new JSONObject();
@@ -36,15 +36,15 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 1L;
-
+	
+	//method used to update the connected clients count
 	@Override
 	public void clientCount(int count) throws RemoteException {
-		//System.out.println("here");
+		
 		monitor.numClients.setText("Client Count: "+String.valueOf(count));
-		//System.out.println("here1");
+		
 	}
-
+	//method used get the currently connected fire alarm list from server
 	@Override
 	public void setSensorList(String[] sensors) throws RemoteException {
 		
@@ -55,14 +55,13 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 				
 					if(!this.sensorDataList.containsKey(alarm)) {
 						this.sensorDataList.put(alarm, array);
-					}
-					
+					}					
 					
 				}
 				
 				
 			}
-			//monitor.sensorList.setListData(this.sensorDataList.keySet().toArray());
+			
 			monitor.listModel.clear();
 			for (String alarm:sensorDataList.keySet()) {
 				monitor.listModel.addElement(alarm);;  
@@ -75,10 +74,10 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 
 	}
 
+	//method used to get the periodic update from the fire alarms from server
 	@Override
 	public synchronized void sensorReadings(HashMap<String, JSONArray> readings) throws RemoteException {
-		// this.sensorDataList=readings;
-		//System.out.println("xxx");
+		
 		try {
 			
 		for (String key : readings.keySet()) {
@@ -101,6 +100,7 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 
 	}
 
+	//update sensor list when a fire alarm disconnect from the server
 	@Override
 	public void sensorDisconnected(String alarmId) throws RemoteException {
 
@@ -121,6 +121,7 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 
 	}
 
+	//check if the sensor already registered in monitor client
 	public boolean contains(String alarmId) {
 		if (this.sensorDataList.containsKey(alarmId)) {
 			return true;
@@ -129,10 +130,12 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 		return false;
 	}
 	
+	//return the interface of the server
 	public static SensorService getServer() {
 		return server;
 	}
 
+		
 	public JSONArray getSensorData(String alarmId) {
 		if (this.sensorDataList.containsKey(alarmId)) {
 			return this.sensorDataList.get(alarmId);
@@ -141,23 +144,25 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 		return null;
 	}
 
-	
+	//disconnect from server. called upon exit
 	public void disconnect(int id) {
 		try {
 			System.out.println("disconnect messenger");
-			System.out.println(server.disconnectFromServer(id)+" disconnect response");
+			System.out.println(server.disconnectFromServer(id));
 		} catch (Exception e) {
 			System.out.println(e.getMessage());
 		}
 		
 	}
 
+	//get alert data from sensor anomalies and failed periodic update from a fire alarm
 	@Override
 	public void alerts(String message) throws RemoteException {
 		monitor.alertsData.setText(monitor.alertsData.getText()+message+"\n");
 		
 	}
 
+	//Hourly sensor reading parsing method
 	@Override
 	public void sensorReading(String reading) throws RemoteException {
 		System.out.println("got readings");
@@ -169,7 +174,7 @@ public class messenger extends UnicastRemoteObject implements ClientInterface {
 		+ js.get("co2") + "\n\n");
 		monitor.sensorData.setCaretPosition(0);
 		
-		monitor.alertsData.setText(new String(Base64.decodeBase64(reading.getBytes())));
+	
 		
 	}
 }
